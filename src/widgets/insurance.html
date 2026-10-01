@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>California Hearing Center — Hearing Benefits Checker</title>
+<style>
+  :root {
+    --teal: #155f6b;
+    --teal-dark: #105966;
+    --gold: #e0ae3c;
+    --orange: #ef7f4d;
+    --bg: #f8fbfa;
+    --card-bg: #eef8f6;
+    --ink: #031828;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 17px; line-height: 1.5;
+    background: var(--bg); color: var(--ink);
+  }
+  .header {
+    background: var(--teal); color: #fff;
+    padding: 16px 20px;
+  }
+  .header .practice { font-size: 14px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; opacity: .92; }
+  .header h1 { font-size: 24px; margin: 4px 0 0; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 20px; }
+  p.sub { margin: 0 0 18px; opacity: .75; }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid #d7e8e3;
+    border-radius: 14px; padding: 18px; margin: 0 0 14px;
+  }
+  .btn {
+    display: block; width: 100%;
+    padding: 15px 16px; margin: 8px 0;
+    font-size: 18px; font-weight: 600; text-align: left;
+    border-radius: 12px; cursor: pointer;
+    border: 2px solid #cfdfd9;
+    background: #ffffff;
+    color: var(--ink);
+  }
+  .btn:active { transform: scale(.99); }
+  .btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; text-align: center; }
+  .btn.primary:hover { background: var(--teal-dark); border-color: var(--teal-dark); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .fine { font-size: 13.5px; opacity: .7; }
+  .progress { height: 10px; border-radius: 5px; background: #ddecea; margin: 0 0 16px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--gold); border-radius: 5px; transition: width .25s; }
+  .stepnum { font-size: 14px; font-weight: 700; color: var(--teal); margin: 0 0 8px; }
+  .badge {
+    display: inline-block; font-size: 14px; font-weight: 700;
+    color: var(--ink); background: #fdf6e3; border: 2px solid var(--gold);
+    border-radius: 999px; padding: 6px 14px; margin: 4px 0 12px;
+  }
+  .headline { font-size: 24px; font-weight: 800; margin: 6px 0 10px; line-height: 1.25; }
+  .bullets { margin: 0 0 10px; padding-left: 20px; }
+  .bullets li { margin: 6px 0; }
+  .closing {
+    border-left: 4px solid var(--gold);
+    background: #fdf6e3; border-radius: 0 10px 10px 0;
+    padding: 12px 14px; margin: 14px 0; font-weight: 600;
+  }
+  .note { border-left: 4px solid var(--orange); padding: 8px 12px; margin: 10px 0; font-size: 15.5px; background: #fff; border-radius: 0 8px 8px 0; }
+  .disclaimer { font-size: 13.5px; opacity: .7; border-top: 1px solid #cfdfd9; padding-top: 12px; margin-top: 16px; }
+  label.field { display: block; font-weight: 600; margin: 12px 0 4px; font-size: 15.5px; }
+  label.field .req { color: var(--orange); }
+  input[type=text], input[type=tel], input[type=email], select {
+    width: 100%; padding: 13px; font-size: 17px; border-radius: 10px;
+    border: 2px solid #b9d2cb;
+    background: #ffffff; color: var(--ink);
+  }
+  input:focus, select:focus { border-color: var(--teal); outline: none; }
+  .consent { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0; font-size: 15px; }
+  .consent input { width: 24px; height: 24px; margin-top: 2px; flex-shrink: 0; }
+  .big-emoji { font-size: 44px; }
+  .center { text-align: center; }
+  .spinner { width: 34px; height: 34px; border: 4px solid #ddecea; border-top-color: var(--teal); border-radius: 50%; margin: 24px auto; animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="practice">California Hearing Center</div>
+  <h1>Hearing Benefits Checker</h1>
+</div>
+<div class="wrap" id="app"></div>
+<script>
+"use strict";
+/* ------------------------------------------------------------------ state */
+const STEPS = [
+  { key: "age65plus", q: "Are you 65 or older?",
+    options: [[true, "Yes, I'm 65 or older"], [false, "No, I'm under 65"]] },
+  { key: "coverageType", q: "What kind of health coverage do you have?",
+    options: [
+      ["medicare-original", "Traditional Medicare (Parts A & B)"],
+      ["medicare-advantage", "Medicare Advantage (Part C)"],
+      ["private", "Private / commercial insurance"],
+      ["employer", "Employer-provided plan"],
+      ["va", "VA health care"],
+      ["medicaid", "Medicaid (Medi-Cal in California)"],
+      ["none", "No insurance — I'd pay myself"]
+    ] },
+  { key: "referral", q: "Do you have a referral from your doctor for a hearing exam?",
+    options: [[true, "Yes"], [false, "No"]] },
+  { key: "benefitChecked", q: "Does your insurance card or plan paperwork mention a hearing benefit?",
+    options: [
+      ["yes", "Yes"],
+      ["no", "No"],
+      ["not-sure", "Not sure"]
+    ] },
+  { key: "hsaFsa", q: "Do you have an HSA or FSA (health savings or flexible spending account)?",
+    options: [
+      ["yes", "Yes"],
+      ["no", "No"],
+      ["not-sure", "Not sure"]
+    ] },
+  { key: "lookingFor", q: "What are you mainly hoping to get?",
+    options: [
+      ["aids", "Hearing aids"],
+      ["exam", "A hearing evaluation"],
+      ["both", "Both"]
+    ] }
+];
+const LOCATIONS = [
+  { id: "san-mateo",  label: "San Mateo — 88 N. San Mateo Drive" },
+  { id: "san-carlos", label: "San Carlos — 1008 Laurel Street" }
+];
+const DISCLAIMER = "General information only. Insurance rules change often and every plan is different. Only a direct check of your specific plan — with the plan itself — can say what is covered for you.";
+
+const state = {
+  step: 0,
+  answers: {},
+  result: null,
+  leadSent: null
+};
+
+/* Human-readable "question — answer" lines sent with the callback request
+   so the practice knows what the patient reported. */
+function buildAnswerSummary(){
+  return STEPS.map(s => {
+    const v = state.answers[s.key];
+    const opt = s.options.find(o => o[0] === v);
+    return `${s.q} — ${opt ? opt[1] : "Not answered"}`;
+  });
+}
+
+const app = document.getElementById("app");
+const bridge = (typeof window !== "undefined") ? window.openai : undefined;
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function callTool(name, args){
+  if (bridge && typeof bridge.callTool === "function") return await bridge.callTool(name, args);
+  throw new Error("preview-mode");
+}
+
+/* ---------------------------------------------------------------- screens */
+function show(html){ app.innerHTML = html; window.scrollTo(0,0); }
+
+function screenWelcome(){
+  show(`
+    <div class="center"><div class="big-emoji">🛡️</div></div>
+    <p class="sub center">2 minutes · Private · Free</p>
+    <div class="card">
+      <p style="margin-top:0"><b>Does insurance cover hearing aids?</b> The honest answer is: it depends on your plan — and the details are never guessable from the plan name alone.</p>
+      <p>Answer 6 quick questions about your coverage and you'll get a plain-language read on what <b>typically</b> applies to people with your type of plan — Traditional Medicare, Medicare Advantage, private, employer, VA, Medicaid, or self-pay.</p>
+      <p style="margin-bottom:0"><b>Important:</b> this is general information, not a coverage decision about your plan. Your free benefit check with California Hearing Center is where we verify your specific coverage.</p>
+      <p class="fine" style="margin-bottom:0">${esc(DISCLAIMER)}</p>
+    </div>
+    <button class="btn primary" id="b-start">Check what typically applies</button>
+    <p class="fine center">San Mateo &amp; San Carlos, CA · (650) 342-9449</p>`);
+  document.getElementById("b-start").onclick = () => screenStep(0);
+}
+
+function screenStep(i){
+  const step = STEPS[i];
+  const pct = Math.round((i / STEPS.length) * 100);
+  show(`
+    <p class="stepnum">Question ${i+1} of ${STEPS.length}</p>
+    <div class="progress"><div style="width:${pct}%"></div></div>
+    <div class="card"><p style="font-size:19px; margin:0; font-weight:600">${esc(step.q)}</p></div>
+    ${step.options.map(([v, label]) => `<button class="btn" data-v='${esc(JSON.stringify(v))}'>${esc(label)}</button>`).join("")}`);
+  app.querySelectorAll("[data-v]").forEach(b => b.onclick = () => {
+    state.answers[step.key] = JSON.parse(b.dataset.v);
+    if (i + 1 < STEPS.length) screenStep(i + 1);
+    else screenScoring();
+  });
+}
+
+async function screenScoring(){
+  show(`<h2 class="center">Checking what typically applies…</h2><div class="spinner"></div>
+        <p class="fine center">Looking up your coverage type</p>`);
+  try {
+    const res = await callTool("assess_hearing_benefits", { ...state.answers });
+    // The tool returns { structuredContent, content }; be liberal in what we accept.
+    state.result = res.structuredContent || res.result || res;
+    screenResults();
+  } catch(e){
+    show(`
+      <h2>Couldn't reach the scorer</h2>
+      <div class="card"><p>This preview isn't connected to the benefits service. In ChatGPT, your result appears here automatically.</p>
+      <p class="fine">Technical detail: ${esc(e.message || e)}</p></div>
+      <button class="btn" onclick="location.reload()">Start over</button>`);
+  }
+}
+
+function screenResults(){
+  const r = state.result;
+  const bullets = (r.bullets || []).map(b => `<li>${esc(b)}</li>`).join("");
+  const notes = (r.notes || []).map(n => `<div class="note">${esc(n)}</div>`).join("");
+  show(`
+    <p class="fine">Your result</p>
+    <span class="badge">${esc(r.outcomeLabel)}</span>
+    <div class="headline">${esc(r.headline)}</div>
+    <div class="card">
+      <ul class="bullets">${bullets}</ul>
+      <p><b>Next step:</b> ${esc(r.recommendedNextStep)}</p>
+      ${notes}
+      <div class="closing">${esc(r.closing)}</div>
+    </div>
+    ${callbackFormHtml()}
+    <div class="disclaimer">${esc(r.disclaimer || DISCLAIMER)}</div>
+    <p class="fine center">This result copy needs review by a licensed audiologist before public use.</p>`);
+  wireCallbackForm();
+}
+
+function callbackFormHtml(){
+  return `
+    <h2>Book your free benefit check</h2>
+    <p class="sub">Leave your details and we'll verify your specific plan — free, no obligation.</p>
+    <div class="card">
+      <label class="field" for="f-name">First name <span class="req">*</span></label>
+      <input type="text" id="f-name" autocomplete="given-name" placeholder="Jane">
+      <label class="field" for="f-email">Email address <span class="req">*</span></label>
+      <input type="email" id="f-email" required autocomplete="email" placeholder="jane@example.com">
+      <label class="field" for="f-phone">Phone (optional)</label>
+      <input type="tel" id="f-phone" autocomplete="tel" placeholder="(650) 555-1234">
+      <label class="field" for="f-loc">Preferred office</label>
+      <select id="f-loc">${LOCATIONS.map(l => `<option value="${l.id}">${esc(l.label)}</option>`).join("")}</select>
+      <label class="field" for="f-time">Best time to reach you (optional)</label>
+      <input type="text" id="f-time" placeholder="Weekday mornings">
+      <label class="consent"><input type="checkbox" id="f-consent">
+        <span>Yes, California Hearing Center may contact me about my benefit check by call, text, or email.</span></label>
+      <button class="btn primary" id="b-send">Request my free benefit check</button>
+      <p class="fine" id="f-err" style="color:#d93025"></p>
+    </div>`;
+}
+
+function wireCallbackForm(){
+  document.getElementById("b-send").onclick = submitLead;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function submitLead(){
+  const err = document.getElementById("f-err");
+  const firstName = document.getElementById("f-name").value.trim();
+  const email = document.getElementById("f-email").value.trim();
+  const phone = document.getElementById("f-phone").value.trim();
+  const locationId = document.getElementById("f-loc").value;
+  const preferredTime = document.getElementById("f-time").value.trim();
+  const consent = document.getElementById("f-consent").checked;
+  if (!firstName){ err.textContent = "Please enter your first name."; return; }
+  if (!EMAIL_RE.test(email)){ err.textContent = "Please enter a valid email address."; return; }
+  if (!consent){ err.textContent = "Please check the consent box so we're allowed to contact you."; return; }
+  err.textContent = "";
+  document.getElementById("b-send").disabled = true;
+  document.getElementById("b-send").textContent = "Sending…";
+  try {
+    const res = await callTool("submit_screening_lead", {
+      firstName, email, phone: phone || undefined, locationId, preferredTime,
+      outcome: state.result.outcomeLabel,
+      answerSummary: buildAnswerSummary(), consent: true
+    });
+    state.leadSent = res.structuredContent || res;
+    screenConfirmation();
+  } catch(e){
+    document.getElementById("b-send").disabled = false;
+    document.getElementById("b-send").textContent = "Request my free benefit check";
+    err.textContent = "Something went wrong sending your request. Please try again.";
+  }
+}
+
+function screenConfirmation(){
+  const s = state.leadSent || {};
+  show(`
+    <div class="center"><div class="big-emoji">✅</div></div>
+    <h2 class="center">Benefit check requested</h2>
+    <div class="card"><p style="margin-top:0">${esc(s.whatHappensNext || "California Hearing Center will be in touch shortly.")}</p>
+    ${s.phone ? `<p>Prefer not to wait? Call <b>${esc(s.phone)}</b>.</p>` : ""}</div>
+    <p class="fine center">Reference: ${esc(s.leadId || "—")}</p>
+    <button class="btn" onclick="location.reload()">Run the check again</button>`);
+}
+
+/* --------------------------------------------------------------------- go */
+screenWelcome();
+</script>
+</body>
+</html>

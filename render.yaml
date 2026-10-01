@@ -1,0 +1,18 @@
+# One-click deploy on Render (https://render.com) — free tier works for testing.
+# In Render: New → Blueprint → point it at the repo containing this file.
+# Render injects its own PORT env var; the server reads it automatically.
+services:
+  - type: web
+    name: chc-insurance-check
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    # Practice email intake (Resend):
+    #   RESEND_API_KEY     the practice's existing Resend key
+    #   LEAD_NOTIFY_EMAIL  infoCHC@hearing-care.org
+    #   LEAD_FROM_EMAIL    California Hearing Center <admin@hearing-care.org>
+    #   APP_LABEL          Hearing Benefits Checker
+    # Optional: forward captured leads to your CRM/email intake.
+    # envVars:
+    #   - key: LEAD_WEBHOOK_URL
+    #     sync: false
